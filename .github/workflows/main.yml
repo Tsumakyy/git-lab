@@ -14,10 +14,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: lab\ api  # Ajuste para Windows path no Actions
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -25,20 +21,20 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'  # Ajuste para sua versão
+        python-version: '3.10'
 
     - name: Install dependencies
       run: |
+        cd "lab api"
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
     - name: Run tests
       run: |
+        cd "lab api"
         pytest test_app.py
 
     - name: Build Docker image
       run: |
+        cd "lab api"
         docker build -t labapi:latest .
-
-    # Caso queira usar no Linux runner (Ubuntu) ao invés de Windows, o working-directory deve ser:
-    # working-directory: lab api
