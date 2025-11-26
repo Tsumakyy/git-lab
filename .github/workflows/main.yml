@@ -1,60 +1,49 @@
-name: CI/CD - Python API com Docker
+name: CI - Python API
 
 on:
   push:
     branches: [ "main" ]
 
-env:
-  # Define o nome da imagem a ser usada
-  IMAGE_NAME: lab-api
-  # Define o caminho para o contexto de build
-  DOCKER_CONTEXT: ./lab_api
-
 jobs:
-  build_and_test:
-    name: Build e Testes Unitários
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout do código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Build da imagem Docker (para Testes)
-        # O Dockerfile deve estar em ./lab_api/Dockerfile
-        run: docker build -t ${{ env.IMAGE_NAME }}:latest ${{ env.DOCKER_CONTEXT }}
-
-      - name: Rodar testes pytest dentro do Docker
-        # Executa o pytest dentro do contêiner recém-construído.
+      - name: Build da imagem Docker
         run: |
-          # Instala o pytest no ambiente do runner para que o comando 'docker run' não falhe
-          # (Apesar de o pytest ser executado dentro do contêiner, esta é uma salvaguarda).
-          docker run --rm ${{ env.IMAGE_NAME }}:latest pytest -q
+          docker build -t lab-final:latest ./lab_api
 
-  deploy_docker:
-    name: Publicar Imagem no Docker Hub
+  test:
     runs-on: ubuntu-latest
-    needs: build_and_test # Só faz o deploy se os testes passarem
+    needs: build
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Rodar testes dentro do Docker
+        run: |
+          docker build -t lab-final:latest ./lab_api
+          docker run --rm lab-final:latest pytest -q
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Login no Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }} # Use um Personal Access Token
-          
-      - name: Build e Tag da Imagem Final
-        # Constrói novamente para tagging. Cria a tag 'latest' e a tag com o SHA.
-        run: |
-          # 1. Constrói a imagem (usando o contexto lab_api)
-          docker build -t ${{ secrets.DOCKER_REPO }}:latest ${{ env.DOCKER_CONTEXT }}
-          # 2. Adiciona a tag com o SHA (identificador de commit)
-          docker tag ${{ secrets.DOCKER_REPO }}:latest ${{ secrets.DOCKER_REPO }}:${{ github.sha }}
+        uses: actions/checkout@v3
 
-      - name: Push da Imagem para o Docker Hub
-        # Envia a tag 'latest' e a tag SHA para o registro.
+      - name: Instalar Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy para a Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          docker push ${{ secrets.DOCKER_REPO }}:latest
-          docker push ${{ secrets.DOCKER_REPO }}:${{ github.sha }}
+          vercel --token=$VERCEL_TOKEN --prod --confirm
