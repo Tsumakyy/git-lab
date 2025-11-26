@@ -1,41 +1,50 @@
-name: CI - Python API
+name: CI/CD - Python API (Vercel Serverless)
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  build:
+  # O job 'build' foi renomeado para 'ci' e focado em testes Python, 
+  # removendo a etapa de Docker que não é mais usada pelo Vercel.
+  ci:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout do código
         uses: actions/checkout@v3
-
-      - name: Build da imagem Docker
+        
+      # --- Configuração do Ambiente Python ---
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9' # Use a mesma versão definida no vercel.json
+      
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+        
+      # --- Rodar Testes ---
+      - name: Rodar testes pytest
+        # Assumindo que o pytest está instalado e seus testes estão na pasta 'lab/'
+        # Ajuste o comando se seus testes usarem um script diferente ou path.
         run: |
-          docker build -t lab-final:latest ./git-lab    
-
-  test:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v3
-
-      - name: Rodar testes dentro do Docker
-        run: |
-          docker build -t lab-final:latest ./git-lab
-          docker run --rm lab-final:latest pytest -q
+          pip install pytest # Garante que o pytest está disponível
+          pytest ./lab -q # Roda os testes na sua pasta 'lab/'
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build
+    # O deploy só deve ocorrer se a etapa de CI (incluindo testes) for bem-sucedida.
+    needs: ci 
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Instalar Node.js e Vercel CLI
+        # Instale o Node.js para que o npm funcione e a CLI Vercel seja instalada.
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' 
 
       - name: Instalar Vercel CLI
         run: npm install -g vercel
@@ -46,4 +55,5 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
+          # Este comando aciona o deploy. O Vercel agora fará o build do Python Serverless.
           vercel --token=$VERCEL_TOKEN --prod --confirm
