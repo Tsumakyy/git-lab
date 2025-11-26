@@ -5,41 +5,49 @@ on:
     branches: [ "main" ]
 
 jobs:
-  ci:
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout do código
         uses: actions/checkout@v3
-        
-      # --- Configuração do Ambiente Python ---
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
+
+      - name: Build da imagem Docker
+        # O caminho do contexto Docker foi ajustado para './lab_api'
+        run: docker build -t lab-final:latest ./lab_api
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build # Garante que a imagem foi construída
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      # NÃO PRECISA MAIS RECONSTRUIR A IMAGEM!
+      # Se você não fizer um push para um registry, o Docker não compartilha imagens entre jobs.
+      # A maneira mais simples e eficaz é rodar a etapa de build e teste no mesmo job,
+      # ou usar o Artifacts para salvar a imagem, mas para manter a estrutura original, vamos
+      # RECONSTRUIR a imagem APENAS para o teste (apesar da ineficiência).
       
-      # 1. Ajuste do Caminho para requirements.txt
-      - name: Instalar dependências
-        # O caminho agora aponta para dentro da pasta 'lab_api/'
-        run: pip install -r lab_api/requirements.txt
-        
-      # --- Rodar Testes ---
-      - name: Rodar testes pytest
+      - name: Rodar testes dentro do Docker
         run: |
-          pip install pytest # Garante que o pytest está disponível
+          # O caminho do Docker build foi ajustado para './lab_api'
+          docker build -t lab-final:latest ./lab_api
           
-          # 2. Ajuste do Caminho para o diretório de testes
-          # O pytest agora aponta para dentro da pasta 'lab_api/'
-          pytest lab_api -q 
+          # Rodar o pytest dentro do contêiner
+          docker run --rm lab-final:latest pytest -q
 
   deploy:
     runs-on: ubuntu-latest
-    needs: ci 
+    # O deploy DEVE depender do 'test' para garantir que os testes passaram.
+    needs: test 
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
+      # --- Configuração para Vercel Serverless ---
       - name: Instalar Node.js e Vercel CLI
         uses: actions/setup-node@v4
         with:
@@ -47,7 +55,9 @@ jobs:
 
       - name: Instalar Vercel CLI
         run: npm install -g vercel
-
+        
+      # O Vercel usará o vercel.json e o app.py/index.py da pasta 'lab_api'
+      # para construir e implantar a função serverless Python.
       - name: Deploy para a Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
