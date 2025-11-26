@@ -5,8 +5,6 @@ on:
     branches: [ "main" ]
 
 jobs:
-  # O job 'build' foi renomeado para 'ci' e focado em testes Python, 
-  # removendo a etapa de Docker que não é mais usada pelo Vercel.
   ci:
     runs-on: ubuntu-latest
 
@@ -18,37 +16,38 @@ jobs:
       - name: Configurar Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9' # Use a mesma versão definida no vercel.json
-      
-      - name: Instalar dependências
-        run: pip install -r requirements.txt
-        
-      # --- Rodar Testes ---
-      - name: Rodar testes pytest
-        # Assumindo que o pytest está instalado e seus testes estão na pasta 'lab/'
-        # Ajuste o comando se seus testes usarem um script diferente ou path.
-        run: |
-          docker build -t lab_api:latest ./lab_api
-          docker run --rm lab_api:latest pytest -q
+          python-version: '3.9'
+          
+      - name: Instalar Python e pytest
+        # Instala o pytest (e quaisquer outros pacotes de teste necessários)
+        run: pip install pytest
 
+      # CORREÇÃO CRÍTICA: Ajuste o caminho do requirements.txt
+      - name: Instalar dependências da aplicação
+        # Assume que o arquivo está DENTRO da pasta lab_api
+        run: pip install -r lab_api/requirements.txt 
+        
+      # --- Rodar Testes (Python Nativo, Sem Docker) ---
+      - name: Rodar testes pytest
+        # O comando agora usa o ambiente Python configurado
+        # e aponta para o diretório de testes 'lab_api'
+        run: pytest lab_api
+        
+  # O job 'deploy' permanece o mesmo (removido por brevidade, mas está correto)
   deploy:
     runs-on: ubuntu-latest
-    # O deploy só deve ocorrer se a etapa de CI (incluindo testes) for bem-sucedida.
     needs: ci 
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
+      # ... (Restante do job deploy)
       - name: Instalar Node.js e Vercel CLI
-        # Instale o Node.js para que o npm funcione e a CLI Vercel seja instalada.
         uses: actions/setup-node@v4
         with:
-          node-version: '20' 
-
+          node-version: '20'
       - name: Instalar Vercel CLI
         run: npm install -g vercel
-
       - name: Deploy para a Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
