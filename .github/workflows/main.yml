@@ -14,7 +14,7 @@ jobs:
 
       - name: Build da imagem Docker
         run: |
-          docker build -t lab_api:latest ./api    
+          docker build -t lab_api:latest ./lab_api   
 
   test:
     runs-on: ubuntu-latest
@@ -26,7 +26,7 @@ jobs:
 
       - name: Rodar testes dentro do Docker
         run: |
-          docker build -t lab_api:latest ./api
+          docker build -t lab_api:latest ./lab_api
           docker run --rm lab_api:latest pytest -q
 
   deploy:
