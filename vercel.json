@@ -1,15 +1,14 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "lab_api/app.py",
-      "use": "@vercel/python"
+  "functions": {
+    "lab_api/app.py": {
+      "runtime": "python3.9" 
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "lab_api/app.py"
+      "source": "/(.*)",
+      "destination": "/lab_api/app.py"
     }
   ]
 }
