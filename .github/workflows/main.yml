@@ -5,8 +5,6 @@ on:
     branches: [ "main" ]
 
 jobs:
-  # O job 'build' foi renomeado para 'ci' e focado em testes Python, 
-  # removendo a etapa de Docker que não é mais usada pelo Vercel.
   ci:
     runs-on: ubuntu-latest
 
@@ -18,22 +16,24 @@ jobs:
       - name: Configurar Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9' # Use a mesma versão definida no vercel.json
+          python-version: '3.9'
       
+      # 1. Ajuste do Caminho para requirements.txt
       - name: Instalar dependências
-        run: pip install -r requirements.txt
+        # O caminho agora aponta para dentro da pasta 'lab_api/'
+        run: pip install -r lab_api/requirements.txt
         
       # --- Rodar Testes ---
       - name: Rodar testes pytest
-        # Assumindo que o pytest está instalado e seus testes estão na pasta 'lab/'
-        # Ajuste o comando se seus testes usarem um script diferente ou path.
         run: |
           pip install pytest # Garante que o pytest está disponível
-          pytest ./lab -q # Roda os testes na sua pasta 'lab/'
+          
+          # 2. Ajuste do Caminho para o diretório de testes
+          # O pytest agora aponta para dentro da pasta 'lab_api/'
+          pytest lab_api -q 
 
   deploy:
     runs-on: ubuntu-latest
-    # O deploy só deve ocorrer se a etapa de CI (incluindo testes) for bem-sucedida.
     needs: ci 
 
     steps:
@@ -41,7 +41,6 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Instalar Node.js e Vercel CLI
-        # Instale o Node.js para que o npm funcione e a CLI Vercel seja instalada.
         uses: actions/setup-node@v4
         with:
           node-version: '20' 
@@ -55,5 +54,4 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          # Este comando aciona o deploy. O Vercel agora fará o build do Python Serverless.
           vercel --token=$VERCEL_TOKEN --prod --confirm
